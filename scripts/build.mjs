@@ -68,7 +68,7 @@ const collectionCard = (collection, depth) => {
     </a>
     <div class="collection-card__body">
       <p class="eyebrow">${String(collection.images.length).padStart(3, "0")} images</p>
-      <h2><a href="${prefix}collections/${collection.slug}/index.html">${escapeHtml(collection.folderName)}</a></h2>
+      <h2><a href="${prefix}collections/${collection.slug}/index.html">${escapeHtml(collection.displayName)}</a></h2>
       <a class="text-link" href="${prefix}collections/${collection.slug}/index.html">Enter collection →</a>
     </div>
   </article>`;
@@ -91,6 +91,9 @@ const build = async () => {
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     const collection = {
       folderName: entry.name,
+      displayName: entry.name === "GUMMOS AND ROSES AND FREAKS MODELS"
+        ? "GUMMOS AND ROSES"
+        : entry.name,
       slug,
       images: files.map((name, index) => ({
         name,
@@ -126,19 +129,19 @@ const build = async () => {
     const collectionDir = path.join(outputRoot, "collections", collection.slug);
     await mkdir(collectionDir, { recursive: true });
     const grid = collection.images.map((image) => imageCard(collection, image, 2)).join("\n");
-    const body = `<div class="page-heading"><a class="back-link" href="../../archive/index.html">← Archive</a><p class="eyebrow">Collection</p><h1>${escapeHtml(collection.folderName)}</h1><p>${collection.images.length} images · source folder preserved</p><p><a class="enter-link" href="1/index.html">Begin sequence →</a></p></div><section class="image-grid">${grid}</section>`;
-    await writeFile(path.join(collectionDir, "index.html"), pageShell({ title: collection.folderName, body, depth: 2 }));
+    const body = `<div class="page-heading"><a class="back-link" href="../../archive/index.html">← Archive</a><p class="eyebrow">Collection</p><h1>${escapeHtml(collection.displayName)}</h1><p>${collection.images.length} images · source folder preserved</p><p><a class="enter-link" href="1/index.html">Begin sequence →</a></p></div><section class="image-grid">${grid}</section>`;
+    await writeFile(path.join(collectionDir, "index.html"), pageShell({ title: collection.displayName, body, depth: 2 }));
     for (const [index, image] of collection.images.entries()) {
       const imageDir = path.join(collectionDir, String(image.number));
       await mkdir(imageDir, { recursive: true });
       const previous = collection.images[index - 1];
       const next = collection.images[index + 1];
       const imageSrc = `../../../images/${fileUrl([collection.slug, image.outputName])}`;
-      const body = `<div class="viewer-heading"><a class="back-link" href="../index.html">← ${escapeHtml(collection.folderName)}</a><p class="eyebrow">Image ${String(image.number).padStart(3, "0")} / ${String(collection.images.length).padStart(3, "0")}</p></div>
+      const body = `<div class="viewer-heading"><a class="back-link" href="../index.html">← ${escapeHtml(collection.displayName)}</a><p class="eyebrow">Image ${String(image.number).padStart(3, "0")} / ${String(collection.images.length).padStart(3, "0")}</p></div>
       <figure class="viewer"><img src="${imageSrc}" alt="${escapeHtml(image.name)}"><figcaption>${escapeHtml(image.name)}</figcaption></figure>
       <nav class="viewer-nav" aria-label="Image navigation">${previous ? `<a href="../${previous.number}/index.html">← Previous</a>` : "<span></span>"}<a href="../index.html">Contact sheet</a>${next ? `<a href="../${next.number}/index.html">Next →</a>` : "<span></span>"}</nav>`;
       const viewerScript = `<script>(() => { const prev = ${previous ? JSON.stringify(`../${previous.number}/index.html`) : "null"}; const next = ${next ? JSON.stringify(`../${next.number}/index.html`) : "null"}; document.addEventListener('keydown', (event) => { if (event.target.matches('input, textarea, select, button')) return; if (event.key === 'ArrowLeft' && prev) location.href = prev; if (event.key === 'ArrowRight' && next) location.href = next; if (event.key === 'Escape') location.href = '../index.html'; }); })();</script>`;
-      await writeFile(path.join(imageDir, "index.html"), pageShell({ title: `${collection.folderName} ${image.number}`, body, depth: 3, script: viewerScript }));
+      await writeFile(path.join(imageDir, "index.html"), pageShell({ title: `${collection.displayName} ${image.number}`, body, depth: 3, script: viewerScript }));
     }
   }
 
