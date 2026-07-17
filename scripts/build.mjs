@@ -50,7 +50,7 @@ const pageShell = ({ title, body, depth = 0, script = "" }) => {
 
 const imageCard = (collection, image, depth) => {
   const prefix = "../".repeat(depth);
-  const imagePath = `${prefix}images/${fileUrl([collection.slug, image.name])}`;
+  const imagePath = `${prefix}images/${fileUrl([collection.slug, image.outputName])}`;
   const imagePage = `${prefix}collections/${collection.slug}/${image.number}/index.html`;
   return `<a class="image-card" href="${imagePage}">
     <img src="${imagePath}" alt="${escapeHtml(image.name)}" loading="lazy">
@@ -61,7 +61,7 @@ const imageCard = (collection, image, depth) => {
 const collectionCard = (collection, depth) => {
   const prefix = "../".repeat(depth);
   const cover = collection.images[0];
-  const coverSrc = cover ? `${prefix}images/${fileUrl([collection.slug, cover.name])}` : "";
+  const coverSrc = cover ? `${prefix}images/${fileUrl([collection.slug, cover.outputName])}` : "";
   return `<article class="collection-card">
     <a href="${prefix}collections/${collection.slug}/index.html" class="collection-cover">
       ${cover ? `<img src="${coverSrc}" alt="" loading="lazy">` : "<span class=\"empty-cover\">No images</span>"}
@@ -89,12 +89,24 @@ const build = async () => {
       .filter((item) => item.isFile() && supported.has(path.extname(item.name).toLowerCase()))
       .map((item) => item.name)
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    const collection = { folderName: entry.name, slug, images: files.map((name, index) => ({ name, number: index + 1 })) };
+    const collection = {
+      folderName: entry.name,
+      slug,
+      images: files.map((name, index) => ({
+        name,
+        number: index + 1,
+        // Keep source names in captions, but do not publish hidden files under
+        // dot-prefixed URLs that deployment tooling may omit.
+        outputName: name.startsWith(".")
+          ? `image-${String(index + 1).padStart(3, "0")}${path.extname(name).toLowerCase()}`
+          : name,
+      })),
+    };
     collections.push(collection);
     const imageDir = path.join(outputRoot, "images", slug);
     await mkdir(imageDir, { recursive: true });
     for (const image of collection.images) {
-      await cp(path.join(sourceRoot, entry.name, image.name), path.join(imageDir, image.name));
+      await cp(path.join(sourceRoot, entry.name, image.name), path.join(imageDir, image.outputName));
     }
   }
 
@@ -121,7 +133,7 @@ const build = async () => {
       await mkdir(imageDir, { recursive: true });
       const previous = collection.images[index - 1];
       const next = collection.images[index + 1];
-      const imageSrc = `../../../images/${fileUrl([collection.slug, image.name])}`;
+      const imageSrc = `../../../images/${fileUrl([collection.slug, image.outputName])}`;
       const body = `<div class="viewer-heading"><a class="back-link" href="../index.html">← ${escapeHtml(collection.folderName)}</a><p class="eyebrow">Image ${String(image.number).padStart(3, "0")} / ${String(collection.images.length).padStart(3, "0")}</p></div>
       <figure class="viewer"><img src="${imageSrc}" alt="${escapeHtml(image.name)}"><figcaption>${escapeHtml(image.name)}</figcaption></figure>
       <nav class="viewer-nav" aria-label="Image navigation">${previous ? `<a href="../${previous.number}/index.html">← Previous</a>` : "<span></span>"}<a href="../index.html">Contact sheet</a>${next ? `<a href="../${next.number}/index.html">Next →</a>` : "<span></span>"}</nav>`;
